@@ -21,7 +21,9 @@ namespace FubarDev.FtpServer
         /// <param name="connection">The connection to get the response socket from.</param>
         /// <param name="asyncSendAction">The action to perform with a working response socket.</param>
         /// <param name="createConnectionErrorFunc">Function to be called when opening the response socket failed.</param>
-        /// <returns>The task with the FTP response.</returns>
+        /// <returns>
+        /// The task with the FTP response.
+        /// </returns>
         [NotNull]
         [ItemNotNull]
         public static async Task<FtpResponse> SendResponseAsync(
@@ -47,6 +49,7 @@ namespace FubarDev.FtpServer
             {
                 responseSocket.Dispose();
                 connection.Data.PassiveSocketClient = null;
+                connection.Data.PassiveSocketClientPort = null;
             }
         }
     }

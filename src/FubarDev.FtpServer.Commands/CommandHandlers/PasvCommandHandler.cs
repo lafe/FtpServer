@@ -25,13 +25,18 @@ namespace FubarDev.FtpServer.CommandHandlers
     /// </summary>
     public class PasvCommandHandler : FtpCommandHandler
     {
+        [NotNull] private readonly IFtpPasvPortMananger _pasvPortMananger;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="PasvCommandHandler"/> class.
         /// </summary>
         /// <param name="connection">The connection this command handler is created for.</param>
-        public PasvCommandHandler([NotNull] IFtpConnection connection)
+        public PasvCommandHandler(
+            [NotNull] IFtpConnection connection,
+            [NotNull] IFtpPasvPortMananger pasvPortMananger)
             : base(connection, "PASV", "EPSV")
         {
+            _pasvPortMananger = pasvPortMananger;
         }
 
         /// <inheritdoc/>
@@ -47,6 +52,7 @@ namespace FubarDev.FtpServer.CommandHandlers
             {
                 Data.PassiveSocketClient.Dispose();
                 Data.PassiveSocketClient = null;
+                Data.PassiveSocketClientPort = null;
             }
 
             if (Data.TransferTypeCommandUsed != null && !string.Equals(command.Name, Data.TransferTypeCommandUsed, StringComparison.OrdinalIgnoreCase))
@@ -60,7 +66,7 @@ namespace FubarDev.FtpServer.CommandHandlers
             {
                 if (string.IsNullOrEmpty(command.Argument) || string.Equals(command.Argument, "ALL", StringComparison.OrdinalIgnoreCase))
                 {
-                    port = 0;
+                    port = _pasvPortMananger.HasLimitedPorts ? _pasvPortMananger.PeekPasvPort(TimeSpan.FromSeconds(5)) : 0;
                 }
                 else
                 {
@@ -69,7 +75,7 @@ namespace FubarDev.FtpServer.CommandHandlers
             }
             else
             {
-                port = 0;
+                port = _pasvPortMananger.HasLimitedPorts ? _pasvPortMananger.PeekPasvPort(TimeSpan.FromSeconds(5)) : 0;
             }
 
             Data.TransferTypeCommandUsed = command.Name;
@@ -96,6 +102,7 @@ namespace FubarDev.FtpServer.CommandHandlers
                 if (acceptTask.Wait(timeout))
                 {
                     Data.PassiveSocketClient = acceptTask.Result;
+                    Data.PassiveSocketClientPort = port != 0 ? port : (int?)null;
                 }
             }
             catch (Exception ex)

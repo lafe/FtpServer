@@ -24,15 +24,19 @@ namespace FubarDev.FtpServer
     /// </summary>
     public sealed class FtpConnectionData : IDisposable
     {
+        private int? _passiveSocketClientPort;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="FtpConnectionData"/> class.
         /// </summary>
         /// <param name="backgroundCommandHandler">Utility module that allows background execution of an FTP command.</param>
-        public FtpConnectionData([NotNull] IBackgroundCommandHandler backgroundCommandHandler)
+        /// <param name="pasvPortMananger">The PASV port manager</param>
+        public FtpConnectionData([NotNull] IBackgroundCommandHandler backgroundCommandHandler, [CanBeNull]IFtpPasvPortMananger pasvPortMananger)
         {
             UserData = new ExpandoObject();
             TransferMode = new FtpTransferMode(FtpFileType.Ascii);
             BackgroundCommandHandler = backgroundCommandHandler;
+            PasvPortMananger = pasvPortMananger;
             Path = new Stack<IUnixDirectoryEntry>();
             FileSystem = new EmptyUnixFileSystem();
         }
@@ -115,10 +119,32 @@ namespace FubarDev.FtpServer
         public TcpClient PassiveSocketClient { get; set; }
 
         /// <summary>
+        /// Gets or sets the port used for the <see cref="PassiveSocketClient"/>. If null, no passive port has been used.
+        /// </summary>
+        public int? PassiveSocketClientPort
+        {
+            get => _passiveSocketClientPort;
+            set
+            {
+                if (value == null && PasvPortMananger != null && _passiveSocketClientPort.HasValue)
+                {
+                    // Release the old value
+                    PasvPortMananger.ReleasePasvPort(_passiveSocketClientPort.Value);
+                }
+                _passiveSocketClientPort = value;
+            }
+        }
+
+        /// <summary>
         /// Gets the <see cref="BackgroundCommandHandler"/> that's required for the <code>ABOR</code> command.
         /// </summary>
         [NotNull]
         public IBackgroundCommandHandler BackgroundCommandHandler { get; }
+
+        /// <summary>
+        /// Gets the PASV port mananger.
+        /// </summary>
+        public IFtpPasvPortMananger PasvPortMananger { get; }
 
         /// <summary>
         /// Gets or sets the last used transfer type command.
@@ -164,6 +190,7 @@ namespace FubarDev.FtpServer
             PassiveSocketClient?.Dispose();
             FileSystem.Dispose();
             PassiveSocketClient = null;
+            PassiveSocketClientPort = null;
         }
     }
 }

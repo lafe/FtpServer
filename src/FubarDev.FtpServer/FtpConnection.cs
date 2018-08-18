@@ -44,16 +44,18 @@ namespace FubarDev.FtpServer
         private Task<FtpResponse> _activeBackgroundTask;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="FtpConnection"/> class.
+        /// Initializes a new instance of the <see cref="FtpConnection" /> class.
         /// </summary>
         /// <param name="socket">The socket to use to communicate with the client.</param>
-        /// <param name="logger">The logger for the FTP connection.</param>
         /// <param name="options">The options for the FTP connection.</param>
         /// <param name="serviceProvider">The service provider used to query services.</param>
+        /// <param name="pasvPortMananger">The PASV port mananger used to control the available ports.</param>
+        /// <param name="logger">The logger for the FTP connection.</param>
         public FtpConnection(
             [NotNull] TcpClient socket,
             [NotNull] IOptions<FtpConnectionOptions> options,
             [NotNull] IServiceProvider serviceProvider,
+            [CanBeNull] IFtpPasvPortMananger pasvPortMananger,
             [CanBeNull] ILogger<IFtpConnection> logger = null)
         {
             var endpoint = (IPEndPoint)socket.Client.RemoteEndPoint;
@@ -71,7 +73,7 @@ namespace FubarDev.FtpServer
             Log = logger;
             SocketStream = OriginalStream = socket.GetStream();
             Encoding = options.Value.DefaultEncoding ?? Encoding.ASCII;
-            Data = new FtpConnectionData(new BackgroundCommandHandler(this));
+            Data = new FtpConnectionData(new BackgroundCommandHandler(this), pasvPortMananger);
 
             // Lazy is required, because we need access to the FTP connection in the command handler constructor
             _commandHandlersDict = new Lazy<IReadOnlyDictionary<string, IFtpCommandHandler>>(
